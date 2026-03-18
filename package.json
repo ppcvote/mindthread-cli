@@ -1,0 +1,26 @@
+{
+  "name": "@ultralab/mindthread-cli",
+  "version": "0.1.0",
+  "description": "CLI for MindThread — AI-powered Threads automation",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mt": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mindthread", "threads", "social-media", "automation", "ai", "cli"],
+  "author": "Ultra Lab <contact@ultralab.tw>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.15.0"
+  }
+}
