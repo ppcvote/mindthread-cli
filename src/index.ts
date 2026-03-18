@@ -433,6 +433,161 @@ webhook
     }
   });
 
+// ── experiment ───────────────────────────────────────────────────────────────
+
+const experiment = program.command("experiment").description("A/B testing experiments");
+
+experiment
+  .command("create <topic>")
+  .description("Create an A/B test: same topic, different formulas")
+  .requiredOption("-a, --account <id>", "Account ID")
+  .requiredOption(
+    "-f, --formulas <formulas>",
+    "Comma-separated formulas (e.g. controversial_opinion,curiosity_hook)"
+  )
+  .action(async (topic: string, opts: { account: string; formulas: string }) => {
+    try {
+      const formulas = opts.formulas.split(",").map((f) => f.trim());
+      if (formulas.length < 2) {
+        console.error("Error: Need at least 2 formulas for an A/B test");
+        process.exit(1);
+      }
+
+      const data = (await api("POST", "/experiments", {
+        topic,
+        account_id: opts.account,
+        formulas,
+      })) as {
+        ok: boolean;
+        data: {
+          experiment_id: string;
+          topic: string;
+          variants: Array<{ variant_id: string; formula: string; post_id: string }>;
+          measure_days: number;
+          ends_at: string;
+        };
+      };
+
+      console.log(`\n  ✓ A/B Test created!\n`);
+      console.log(`  Experiment: ${data.data.experiment_id}`);
+      console.log(`  Topic: ${data.data.topic}`);
+      console.log(`  Results ready: ${data.data.ends_at}\n`);
+      console.log(`  Variants:`);
+      for (const [i, v] of data.data.variants.entries()) {
+        console.log(`    ${i + 1}. ${v.formula} → ${v.post_id}`);
+      }
+      console.log();
+    } catch (e: unknown) {
+      console.error(`Error: ${(e as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+experiment
+  .command("list")
+  .description("List A/B test experiments")
+  .option("-s, --status <status>", "Filter: active, completed, cancelled")
+  .action(async (opts: { status?: string }) => {
+    try {
+      const path = opts.status ? `/experiments?status=${opts.status}` : "/experiments";
+      const data = (await api("GET", path)) as {
+        ok: boolean;
+        data: {
+          experiments: Array<{
+            experiment_id: string;
+            topic: string;
+            status: string;
+            formulas: string[];
+            winner_formula: string | null;
+            ends_at: string | null;
+          }>;
+        };
+      };
+
+      if (!data.data.experiments.length) {
+        console.log("\n  No experiments found.\n");
+        return;
+      }
+
+      console.log(`\n  ${data.data.experiments.length} experiment(s):\n`);
+      for (const e of data.data.experiments) {
+        const winner = e.winner_formula ? ` → Winner: ${e.winner_formula}` : "";
+        console.log(`  [${e.status}] ${e.topic}`);
+        console.log(`    ID: ${e.experiment_id}`);
+        console.log(`    Formulas: ${e.formulas.join(" vs ")}${winner}`);
+        if (e.ends_at) console.log(`    Ends: ${e.ends_at}`);
+        console.log();
+      }
+    } catch (e: unknown) {
+      console.error(`Error: ${(e as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+experiment
+  .command("results <id>")
+  .description("View A/B test results")
+  .action(async (id: string) => {
+    try {
+      const data = (await api("GET", `/experiments/${id}`)) as {
+        ok: boolean;
+        data: {
+          experiment_id: string;
+          topic: string;
+          status: string;
+          variants: Array<{
+            formula: string;
+            metrics: { views: number; likes: number; replies: number; engagement_rate: number } | null;
+          }>;
+          winner_formula: string | null;
+          confidence: number | null;
+          insights: string | null;
+        };
+      };
+
+      const d = data.data;
+      console.log(`\n  Experiment: ${d.experiment_id}`);
+      console.log(`  Topic: ${d.topic}`);
+      console.log(`  Status: ${d.status}\n`);
+
+      console.log(`  Variants:`);
+      for (const v of d.variants) {
+        if (v.metrics) {
+          const marker = v.formula === d.winner_formula ? " ★" : "";
+          console.log(
+            `    ${v.formula}${marker}: ${v.metrics.views} views, ${v.metrics.likes} likes, ${v.metrics.replies} replies (${v.metrics.engagement_rate}%)`
+          );
+        } else {
+          console.log(`    ${v.formula}: metrics pending...`);
+        }
+      }
+
+      if (d.winner_formula) {
+        console.log(`\n  Winner: ${d.winner_formula} (${d.confidence}% confidence)`);
+      }
+      if (d.insights) {
+        console.log(`\n  ${d.insights}`);
+      }
+      console.log();
+    } catch (e: unknown) {
+      console.error(`Error: ${(e as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+experiment
+  .command("cancel <id>")
+  .description("Cancel an active experiment")
+  .action(async (id: string) => {
+    try {
+      await api("POST", `/experiments/${id}/cancel`);
+      console.log(`\n  ✓ Experiment ${id} cancelled.\n`);
+    } catch (e: unknown) {
+      console.error(`Error: ${(e as Error).message}`);
+      process.exit(1);
+    }
+  });
+
 // ── Helper: resolve account ID ────────────────────────────────────────────────
 
 async function resolveAccountId(explicit?: string): Promise<string> {
