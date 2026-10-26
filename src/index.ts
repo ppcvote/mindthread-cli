@@ -7,7 +7,7 @@ import { Command, CommanderError, Option } from "commander";
 import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { ApiError, KEY_PAGE, VERSION, api, apiUrl, configFile, deleteConfig, mask, request, resolveKey, seg, writeConfig, type Method } from "./client.js";
-import { EXIT, UsageError, block, clip, emit, kv, line, printJson, renderError, state, table } from "./output.js";
+import { EXIT, UsageError, block, clip, emit, kv, line, printJson, printWarnings, renderError, state, table } from "./output.js";
 
 // ── input helpers ────────────────────────────────────────────────────────────
 
@@ -274,6 +274,7 @@ program
       if (p.topic_tag_dropped || d.topic_tag_dropped) line("  ⚠ Threads refused the topic tag; posted without it");
       const v = p.rule_violations ?? d.rule_violations;
       if (v?.length) line(`  ⚠ content rules: ${JSON.stringify(v)}`);
+      printWarnings(d.warnings);
       if (res.test_mode) line("  (test key: simulated, nothing was posted)");
     });
   }));
@@ -357,6 +358,7 @@ queue
     emit(res, () => {
       if (res.data?.schedule_times) line(`  Schedule times: ${res.data.schedule_times}`);
       table(res.data?.items ?? [], [["position", "#"], ["id", "ID"], ["next_publish_at", "NEXT PUBLISH"], ["text", "TEXT"]]);
+      for (const it of res.data?.items ?? []) printWarnings(it.warnings, `${it.id}: `);
     });
   }));
 

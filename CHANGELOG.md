@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Prints API 1.17.0 warnings, one line each and without changing the exit code: `off_hours` when a scheduled time is outside the account's usual posting hours, `stale_time_reference` when the text says "yesterday" or "last week" and publishes on a later day. Shown after `post` and per item in `queue list`; `--json` keeps the envelope untouched.
+
 ## 0.2.0 (2026-10-26)
 
 First npm release.

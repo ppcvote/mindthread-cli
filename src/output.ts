@@ -43,6 +43,19 @@ export function kv(obj: Record<string, unknown>, keys?: string[]): void {
   }
 }
 
+/**
+ * Warnings (API 1.17.0): reminders that never block, e.g. off_hours (the time is outside the account's usual posting hours)
+ * and stale_time_reference (the text says "yesterday" or "last week" and publishes on a later day). One line each.
+ */
+export function printWarnings(list: unknown, prefix = ""): void {
+  if (!Array.isArray(list)) return;
+  for (const w of list) {
+    if (!w || typeof w !== "object") continue;
+    const { code, message } = w as { code?: unknown; message?: unknown };
+    if (typeof message === "string" && message) line(`  ⚠ ${prefix}${typeof code === "string" ? `${code}: ` : ""}${message}`);
+  }
+}
+
 /** Output a successful response: the envelope with --json, otherwise whatever `human` prints */
 export function emit(res: unknown, human: () => void): void {
   if (state.json) printJson(res);

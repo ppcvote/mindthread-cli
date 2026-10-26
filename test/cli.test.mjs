@@ -120,6 +120,17 @@ test("post --at sends publish_at; relative times become ISO; offsets are require
   assert.equal(bad.calls.length, 0);
 });
 
+test("warnings from the API are printed one per line and never change the exit code (API 1.17.0)", async () => {
+  const warn = { code: "off_hours", message: "Scheduled for 03:00 (Asia/Taipei), outside this account's usual posting hours (9:00, 21:00, based on its posting times). Make sure this time is intended.", message_zh: "x", detail: {} };
+  const { r } = await withMock(["post", "later", "-a", ACC1, "--at", "2026-11-01T03:00:00+08:00"], { override: (c) => c.path === "/content/publish" ? ok({ post: { id: "p9", kind: "text", status: "scheduled", publish_at: c.body.publish_at }, warnings: [warn] }) : null });
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stdout, /⚠ off_hours: Scheduled for 03:00/);
+  const q = await withMock(["queue", "list", "-a", ACC1], { override: (c) => c.path === "/library" && c.method === "GET" ? ok({ items: [{ id: "lib1", position: 1, next_publish_at: "2026-10-29T01:30:00.000Z", text: "昨天的新聞", warnings: [{ code: "stale_time_reference", message: "Written 10/26, publishing 10/29 (3 days later)", message_zh: "x", detail: {} }] }] }) : null });
+  assert.match(q.r.stdout, /⚠ lib1: stale_time_reference: Written 10\/26/);
+  const j = await withMock(["post", "later", "-a", ACC1, "--at", "2026-11-01T03:00:00+08:00", "--json"], { override: (c) => c.path === "/content/publish" ? ok({ post: { id: "p9" }, warnings: [warn] }) : null });
+  assert.equal(JSON.parse(j.r.stdout).data.warnings[0].code, "off_hours", "--json keeps the envelope untouched");
+});
+
 test("post --best-time uses /content/schedule with auto_optimize_time; text can come from stdin", async () => {
   const { r, calls } = await withMock(["post", "-", "-a", ACC1, "--best-time"], { input: "from stdin\n" });
   assert.equal(r.code, 0, r.stderr);
