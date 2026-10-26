@@ -1,26 +1,56 @@
 {
-  "name": "@ultralab/mindthread-cli",
-  "version": "0.1.0",
-  "description": "CLI for MindThread — AI-powered Threads automation",
+  "name": "mindthread-cli",
+  "version": "0.2.0",
+  "description": "Threads scheduler built for AI agents: write, schedule and publish Threads posts, review replies and read insights from the shell. JSON output for agents.",
   "type": "module",
-  "main": "dist/index.js",
   "bin": {
-    "mt": "dist/index.js"
+    "mindthread": "dist/index.js"
+  },
+  "files": [
+    "dist/*.js",
+    "skills/mindthread/SKILL.md",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js"
+    "test": "npm run build && node --test test/cli.test.mjs",
+    "test:contract": "npm run build && node --test test/contract.test.mjs",
+    "test:live": "npm run build && node --test test/live.test.mjs",
+    "prepublishOnly": "npm test && npm run test:contract && npm run test:live"
   },
-  "keywords": ["mindthread", "threads", "social-media", "automation", "ai", "cli"],
-  "author": "Ultra Lab <contact@ultralab.tw>",
+  "keywords": [
+    "threads",
+    "threads-api",
+    "meta-threads",
+    "social-media",
+    "scheduler",
+    "cli",
+    "ai-agent",
+    "agent-tools",
+    "mcp",
+    "automation",
+    "mindthread"
+  ],
+  "author": "Ultra Lab <contact@ultralab.tw> (https://ultralab.tw)",
   "license": "MIT",
+  "homepage": "https://github.com/ppcvote/mindthread-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ppcvote/mindthread-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ppcvote/mindthread-cli/issues"
+  },
   "dependencies": {
     "commander": "^13.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "tsx": "^4.19.0",
-    "@types/node": "^22.15.0"
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3"
   }
 }
