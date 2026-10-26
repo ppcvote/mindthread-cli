@@ -1,7 +1,7 @@
 ---
 name: mindthread
 description: Schedule, publish and manage Threads (threads.net) posts through MindThread. Draft posts in the account's voice, publish now or at a set time, queue posts, review cloud-patrol reply drafts, and read views and engagement. Use when the user asks to post, schedule, queue or analyze Threads content, or to review replies waiting for approval.
-version: 0.2.0
+version: 0.3.0
 metadata:
   openclaw:
     requires:
