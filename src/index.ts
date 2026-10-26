@@ -329,8 +329,11 @@ schedules
   .action(run(async (o: { account?: string; status?: string }) => {
     const account_id = o.account ? await resolveAccount(o.account) : undefined;
     const res = await api.get("/schedules", { account_id, status: o.status });
-    emit(res, () => table((res.data?.schedules ?? []).map((s: Record<string, any>) => ({ ...s, when: s.publish_at ?? s.scheduled_at })),
-      [["id", "ID"], ["status", "STATUS"], ["when", "PUBLISH AT"], ["text", "TEXT"]]));
+    emit(res, () => {
+      table((res.data?.schedules ?? []).map((s: Record<string, any>) => ({ ...s, when: s.publish_at ?? s.scheduled_at })),
+        [["id", "ID"], ["status", "STATUS"], ["when", "PUBLISH AT"], ["text", "TEXT"]]);
+      for (const s of res.data?.schedules ?? []) printWarnings(s.warnings, `${s.id}: `);
+    });
   }));
 
 schedules
@@ -389,7 +392,13 @@ function bulkOr(single: (id: string) => Promise<unknown>, action: "approve" | "a
   return run(async (ids: string[]) => {
     if (ids.length > 50) throw new UsageError("At most 50 ids per call");
     const res = ids.length === 1 ? await single(ids[0]) : await api.post("/library/bulk", { action, ids });
-    emit(res, () => line(`✓ ${verb} ${ids.length} item(s)`));
+    emit(res, () => {
+      line(`✓ ${verb} ${ids.length} item(s)`);
+      // API 1.18.0: releases warn when the content changed since it was last viewed (never blocks)
+      const r = res as { data?: { warnings?: unknown; results?: Array<{ id?: string; warnings?: unknown }> } };
+      if (ids.length === 1) printWarnings(r.data?.warnings, `${ids[0]}: `);
+      else for (const it of r.data?.results ?? []) printWarnings(it.warnings, `${it.id}: `);
+    });
   });
 }
 
@@ -414,7 +423,7 @@ queue
     const body = { text, status: o.status, position: o.first ? "first" : o.last ? "last" : undefined };
     if (Object.values(body).every((v) => v === undefined)) throw new UsageError("Nothing to change: give new text, --status, --first or --last");
     const res = await api.patch(`/library/${seg(id)}`, body);
-    emit(res, () => line(`✓ Updated ${id}`));
+    emit(res, () => { line(`✓ Updated ${id}`); printWarnings(res.data?.warnings, `${id}: `); });
   }));
 
 // insights ─────────────────────────────────────────────────────────────────────

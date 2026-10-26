@@ -89,4 +89,5 @@ mindthread events --since <iso> --json        # post.published, post.failed, rep
 - Never publish with `--now` or approve a reply the user has not seen, unless the user explicitly asked you to act without review.
 - Never invent numbers or claims in posts; if the account has content rules with `facts`, only those numbers are allowed.
 - Do not retry a request that returned `approval_required`; the server runs it once the owner confirms.
+- Read `warnings[]` in every response (they never block). `off_hours` and `stale_time_reference` question the time or a word like "yesterday"; `changed_since_last_viewed` means the text, media or time changed since the user last looked at it (or since you last read it): show the user the removed and added sentences before releasing it. Editing a draft is not the user seeing it.
 - Anything not covered here: `mindthread api GET /openapi.json` lists every endpoint; call one with `mindthread api <METHOD> <path> -d '<json>'`.

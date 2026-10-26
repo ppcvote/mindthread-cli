@@ -46,14 +46,30 @@ export function kv(obj: Record<string, unknown>, keys?: string[]): void {
 /**
  * Warnings (API 1.17.0): reminders that never block, e.g. off_hours (the time is outside the account's usual posting hours)
  * and stale_time_reference (the text says "yesterday" or "last week" and publishes on a later day). One line each.
+ * changed_since_last_viewed (API 1.18.0): the content changed since it was last viewed; the removed (-) and added (+)
+ * sentences follow the warning line, up to DIFF_LINES each.
  */
+const DIFF_LINES = 5;
 export function printWarnings(list: unknown, prefix = ""): void {
   if (!Array.isArray(list)) return;
   for (const w of list) {
     if (!w || typeof w !== "object") continue;
-    const { code, message } = w as { code?: unknown; message?: unknown };
+    const { code, message, detail } = w as { code?: unknown; message?: unknown; detail?: unknown };
     if (typeof message === "string" && message) line(`  ⚠ ${prefix}${typeof code === "string" ? `${code}: ` : ""}${message}`);
+    if (code === "changed_since_last_viewed" && detail && typeof detail === "object") printDiff(detail as Record<string, unknown>);
   }
+}
+
+function printDiff(d: Record<string, unknown>): void {
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const removed = list(d.removed);
+  const added = list(d.added);
+  for (const s of removed.slice(0, DIFF_LINES)) line(`      - ${clip(s, 120)}`);
+  if (Number(d.removed_count) > Math.min(removed.length, DIFF_LINES)) line(`      - … ${Number(d.removed_count) - Math.min(removed.length, DIFF_LINES)} more removed`);
+  for (const s of added.slice(0, DIFF_LINES)) line(`      + ${clip(s, 120)}`);
+  if (Number(d.added_count) > Math.min(added.length, DIFF_LINES)) line(`      + … ${Number(d.added_count) - Math.min(added.length, DIFF_LINES)} more added`);
+  if (d.media_changed === true) line("      ~ media changed");
+  if (d.time_changed === true) line(`      ~ publish time: ${String(d.previous_scheduled_at ?? "unset")} → ${String(d.scheduled_at ?? "unset")}`);
 }
 
 /** Output a successful response: the envelope with --json, otherwise whatever `human` prints */

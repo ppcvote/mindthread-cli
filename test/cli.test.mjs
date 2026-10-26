@@ -131,6 +131,27 @@ test("warnings from the API are printed one per line and never change the exit c
   assert.equal(JSON.parse(j.r.stdout).data.warnings[0].code, "off_hours", "--json keeps the envelope untouched");
 });
 
+test("changed_since_last_viewed prints the removed and added sentences on approve, bulk approve, edit and schedules list (API 1.18.0)", async () => {
+  const changed = { code: "changed_since_last_viewed", message: "Changed since the account owner last viewed it (10/25 14:02, Asia/Taipei): 1 sentence removed, 1 added. Review the difference before it goes out.", message_zh: "x", detail: { removed: ["Seats are limited."], added: ["Seats are gone, join the next batch."], removed_count: 1, added_count: 1, media_changed: true, time_changed: false } };
+  const a = await withMock(["queue", "approve", "lib1"], { override: (c) => c.path === "/library/lib1/approve" ? ok({ id: "lib1", status: "queued", warnings: [changed] }) : null });
+  assert.equal(a.r.code, 0, a.r.stderr);
+  assert.match(a.r.stdout, /⚠ lib1: changed_since_last_viewed: Changed since the account owner last viewed it/);
+  assert.match(a.r.stdout, /\n      - Seats are limited\./);
+  assert.match(a.r.stdout, /\n      \+ Seats are gone, join the next batch\./);
+  assert.match(a.r.stdout, /~ media changed/);
+  const b = await withMock(["queue", "approve", "lib1", "lib2"], { override: (c) => c.path === "/library/bulk" ? ok({ action: "approve", requested: 2, done: 2, results: [{ id: "lib1", ok: true, status: "queued", warnings: [changed] }, { id: "lib2", ok: true, status: "queued", warnings: [] }] }) : null });
+  assert.match(b.r.stdout, /⚠ lib1: changed_since_last_viewed/);
+  assert.doesNotMatch(b.r.stdout, /lib2: changed/);
+  const e = await withMock(["queue", "edit", "lib1", "new text"], { override: (c) => c.path === "/library/lib1" && c.method === "PATCH" ? ok({ id: "lib1", status: "queued", warnings: [changed] }) : null });
+  assert.match(e.r.stdout, /✓ Updated lib1[\s\S]*⚠ lib1: changed_since_last_viewed/);
+  const l = await withMock(["schedules", "list"], { override: (c) => c.path === "/schedules" ? ok({ schedules: [{ id: "p1", status: "scheduled", publish_at: "2026-10-30T01:00:00.000Z", text: "hello", warnings: [{ ...changed, detail: { ...changed.detail, media_changed: false, time_changed: true, previous_scheduled_at: "2026-10-29T01:00:00.000Z", scheduled_at: "2026-10-30T01:00:00.000Z" } }] }] }) : null });
+  assert.match(l.r.stdout, /⚠ p1: changed_since_last_viewed/);
+  assert.match(l.r.stdout, /~ publish time: 2026-10-29T01:00:00.000Z → 2026-10-30T01:00:00.000Z/);
+  const j = await withMock(["queue", "approve", "lib1", "--json"], { override: (c) => c.path === "/library/lib1/approve" ? ok({ id: "lib1", status: "queued", warnings: [changed] }) : null });
+  assert.equal(JSON.parse(j.r.stdout).data.warnings[0].code, "changed_since_last_viewed", "--json keeps the envelope untouched");
+  assert.equal(j.r.code, 0);
+});
+
 test("post --best-time uses /content/schedule with auto_optimize_time; text can come from stdin", async () => {
   const { r, calls } = await withMock(["post", "-", "-a", ACC1, "--best-time"], { input: "from stdin\n" });
   assert.equal(r.code, 0, r.stderr);

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Prints API 1.18.0 `changed_since_last_viewed` with the removed (`-`) and added (`+`) sentences, up to 5 each, plus `~ media changed` or `~ publish time: old → new`. Shown after `queue approve` (one id or many), `queue edit`, and per item in `schedules list` and `queue list`; never blocks and never changes the exit code. The skill tells agents to show the difference to the user before releasing.
 - Prints API 1.17.0 warnings, one line each and without changing the exit code: `off_hours` when a scheduled time is outside the account's usual posting hours, `stale_time_reference` when the text says "yesterday" or "last week" and publishes on a later day. Shown after `post` and per item in `queue list`; `--json` keeps the envelope untouched.
 
 ## 0.2.0 (2026-10-26)
