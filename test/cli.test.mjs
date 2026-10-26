@@ -233,6 +233,28 @@ test("generate, schedules, queue add (--- separated stdin), patrol pending/appro
   assert.deepEqual(ps.calls[0].body, { account_id: ACC1, keywords: ["保險", "#退休"], daily_cap: 10, enabled: false, review_before_reply: true });
 });
 
+test("patrol approve: one id single route, several ids or --all batch route, flagged drafts reported", async () => {
+  const batchAnswer = (c) => c.path === "/patrol/cloud/pending/approve" ? ok({ approved: [{ id: "p1", account_id: ACC1, reply_id: "r1" }, { id: "p2", account_id: ACC1, reply_id: "r2" }], failed: [], skipped: [{ id: "p3", account_id: ACC1, reason: "needs_individual", flags: ["political"] }], remaining: 0, cap_left: { [ACC1]: 3 } }) : null;
+  const many = await withMock(["patrol", "approve", "p1", "p2", "p3"], { override: batchAnswer });
+  assert.equal(many.r.code, 0);
+  assert.equal(many.calls[0].path, "/patrol/cloud/pending/approve");
+  assert.deepEqual(many.calls[0].body, { ids: ["p1", "p2", "p3"] });
+  assert.match(many.r.stdout, /Sent 2 replies/);
+  assert.match(many.r.stdout, /p3\s+needs_individual \(political\)/);
+
+  const all = await withMock(["patrol", "approve", "--all", "-a", ACC1], { override: batchAnswer });
+  assert.deepEqual(all.calls[0].body, { account_id: ACC1, all: true });
+
+  const one = await withMock(["patrol", "approve", "p1"]);
+  assert.equal(one.calls[0].path, "/patrol/cloud/pending/p1/approve");
+
+  for (const bad of [["patrol", "approve"], ["patrol", "approve", "p1", "--all", "-a", ACC1], ["patrol", "approve", "p1", "p2", "--reply", "x"], ["patrol", "approve", ...Array.from({ length: 51 }, (_, i) => `p${i}`)]]) {
+    const r = await withMock(bad);
+    assert.equal(r.r.code, 2, bad.join(" "));
+    assert.equal(r.calls.length, 0);
+  }
+});
+
 test("queue approve uses the single route for one id and bulk for several", async () => {
   const one = await withMock(["queue", "approve", "lib1"]);
   assert.equal(one.calls[0].path, "/library/lib1/approve");

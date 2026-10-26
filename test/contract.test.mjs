@@ -18,6 +18,7 @@ const BODY_FIELDS = {
   "POST /library/bulk": ["action", "ids"],
   "PUT /patrol/cloud": ["account_id", "keywords", "persona", "daily_cap", "mode", "enabled", "review_before_reply"],
   "POST /patrol/cloud/pending/{id}/approve": ["reply"],
+  "POST /patrol/cloud/pending/approve": ["ids", "account_id", "all"],
   "POST /patrol/cloud/pending/{id}/reject": ["reason"],
   "POST /webhooks": ["url", "events", "secret"],
   "POST /experiments": ["topic", "account_id", "formulas"],

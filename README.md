@@ -95,6 +95,8 @@ mindthread queue add - -a @yourbrand --draft < posts.txt
 # Review replies that cloud patrol drafted
 mindthread patrol pending -a @yourbrand
 mindthread patrol approve <id> --reply "Thanks, that is exactly why we built it."
+# Or approve a batch: up to 50, within the account's daily cap; flagged drafts stay for one-by-one approval
+mindthread patrol approve --all -a @yourbrand
 
 # Watch what happens
 mindthread events --follow --types post.published,post.failed --json

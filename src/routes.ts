@@ -30,6 +30,7 @@ export const ROUTES = [
   ["GET", "/patrol/cloud/keyword-suggestions"],
   ["GET", "/patrol/cloud/pending"],
   ["POST", "/patrol/cloud/pending/{id}/approve"],
+  ["POST", "/patrol/cloud/pending/approve"],
   ["POST", "/patrol/cloud/pending/{id}/reject"],
   ["GET", "/events"],
   ["GET", "/webhooks"],

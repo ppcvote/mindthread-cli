@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 (2026-10-27)
+
+- `patrol approve` takes several ids (up to 50) or `--all -a <account>` and calls the API 1.19.0 batch approve. A batch sends at most the account's replies left today; flagged drafts (`needs_individual`: political, self_harm, pii, promo, flagged) are never sent in a batch and are listed as left pending, to approve one id at a time. One id still uses the single route and accepts `--reply`. Batch approve needs `patrol:reply_send` set to allow.
+- `patrol pending` marks drafts that need individual approval and prints the daily cap and how many replies are left today.
+
 ## 0.3.0 (2026-10-27)
 
 - Prints API 1.18.0 `changed_since_last_viewed` with the removed (`-`) and added (`+`) sentences, up to 5 each, plus `~ media changed` or `~ publish time: old → new`. Shown after `queue approve` (one id or many), `queue edit`, and per item in `schedules list` and `queue list`; never blocks and never changes the exit code. The skill tells agents to show the difference to the user before releasing.

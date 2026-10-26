@@ -1,7 +1,7 @@
 ---
 name: mindthread
 description: Schedule, publish and manage Threads (threads.net) posts through MindThread. Draft posts in the account's voice, publish now or at a set time, queue posts, review cloud-patrol reply drafts, and read views and engagement. Use when the user asks to post, schedule, queue or analyze Threads content, or to review replies waiting for approval.
-version: 0.3.0
+version: 0.4.0
 metadata:
   openclaw:
     requires:
@@ -70,11 +70,13 @@ Pass `--idempotency-key <unique-id>` on post and queue commands when you might r
 mindthread patrol pending -a @handle --json          # drafted replies waiting for review
 mindthread patrol approve <id> --json                # send as drafted
 mindthread patrol approve <id> --reply "<edited>"    # send an edited reply
+mindthread patrol approve <id> <id> ... --json       # batch: up to 50 ids
+mindthread patrol approve --all -a @handle --json    # batch: the account's pending drafts, oldest first, up to 50
 mindthread patrol reject <id> --json                 # never send
 mindthread patrol keywords -a @handle --json         # AI keyword suggestions (one AI call; once per 24 h)
 ```
 
-Show each draft to the user before approving unless they delegated the decision. Turning patrol on can require the owner's confirmation; that is expected.
+Show each draft to the user before approving unless they delegated the decision. A batch sends at most the account's `left_today` (daily cap minus replies already sent today); the rest stay pending with `daily_cap`. Drafts with `needs_individual` (political, self-harm, personal data, promotion, or flagged when drafted) are never batch-approved: show the user each one and approve it by its own id only if they say so. Batch approve needs `patrol:reply_send` set to allow; with ask it fails with `approval_not_supported`, so approve one id at a time. Turning patrol on can require the owner's confirmation; that is expected.
 
 ## Results
 

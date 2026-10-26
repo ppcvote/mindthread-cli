@@ -497,20 +497,45 @@ patrol
       if (!items.length) line(`  No ${o.status} items.`);
       for (const it of items) {
         const post = it.post ?? it.target ?? {};
-        line(`── ${it.id}  ${it.type ?? ""}${it.expires_at ? `  expires ${it.expires_at}` : ""}`);
+        line(`── ${it.id}  ${it.type ?? ""}${it.expires_at ? `  expires ${it.expires_at}` : ""}${it.needs_individual ? `  ⚠ needs individual approval (${(it.flags ?? []).join(", ")})` : ""}`);
         if (post.text || it.post_text) line(`  post:  ${clip(post.text ?? it.post_text, 140)}`);
         if (post.permalink || it.permalink) line(`  link:  ${post.permalink ?? it.permalink}`);
         if (it.draft ?? it.reply) line(`  reply: ${clip(it.draft ?? it.reply, 280)}`);
       }
       if (res.data?.has_more) line(`  More: --cursor ${res.data.next_cursor}`);
-      if (items.length && o.status === "pending") line("  Send: mindthread patrol approve <id> [--reply \"edited\"]   Drop: mindthread patrol reject <id>");
+      if (o.status === "pending" && res.data?.left_today !== undefined) line(`  Daily cap ${res.data.daily_cap}, ${res.data.left_today} left today`);
+      if (items.length && o.status === "pending") line("  Send: mindthread patrol approve <id> [--reply \"edited\"]   Batch: mindthread patrol approve --all -a <account>   Drop: mindthread patrol reject <id>");
     });
   }));
 
-patrol.command("approve").description("send a drafted reply now (optionally edited)").argument("<id>", "pending id").option("--reply <text>", "edited reply text")
-  .action(run(async (id: string, o: { reply?: string }) => {
-    const res = await api.post(`/patrol/cloud/pending/${seg(id)}/approve`, { reply: o.reply });
-    emit(res, () => line(`✓ Sent ${id}${res.data?.edited ? " (edited)" : ""}`));
+patrol
+  .command("approve")
+  .description("send drafted replies now: one id (optionally edited), several ids, or --all for an account (batch: up to 50, per-account daily cap, flagged drafts stay for one-by-one approval)")
+  .argument("[ids...]", "pending ids (1-50)")
+  .option("--reply <text>", "edited reply text (one id only)")
+  .option("--all", "approve the account's pending drafts, oldest first, up to 50 (needs -a or MINDTHREAD_ACCOUNT)")
+  .addOption(accountOpt())
+  .action(run(async (ids: string[], o: { reply?: string; all?: boolean; account?: string }) => {
+    if (o.all && ids.length) throw new UsageError("Use either ids or --all, not both");
+    if (!o.all && !ids.length) throw new UsageError("Give one or more pending ids, or --all with -a <account>");
+    if (ids.length > 50) throw new UsageError("At most 50 ids per call");
+    if (o.reply !== undefined && (o.all || ids.length !== 1)) throw new UsageError("--reply works with exactly one id");
+    if (!o.all && ids.length === 1) {
+      const res = await api.post(`/patrol/cloud/pending/${seg(ids[0])}/approve`, { reply: o.reply });
+      emit(res, () => line(`✓ Sent ${ids[0]}${res.data?.edited ? " (edited)" : ""}`));
+      return;
+    }
+    // API 1.19.0 batch approve: needs patrol:reply_send = allow (ask keys get approval_not_supported; approve one by one instead)
+    const body = o.all ? { account_id: await resolveAccount(o.account), all: true } : { ids };
+    const res = await api.post("/patrol/cloud/pending/approve", body);
+    emit(res, () => {
+      const d = res.data ?? {};
+      line(`✓ Sent ${(d.approved ?? []).length} repl${(d.approved ?? []).length === 1 ? "y" : "ies"}`);
+      for (const s of d.skipped ?? []) line(`  left pending  ${s.id}  ${s.reason}${s.flags?.length ? ` (${s.flags.join(", ")})` : ""}`);
+      for (const f of d.failed ?? []) line(`  not sent      ${f.id}  ${f.code}${f.message ? `: ${clip(f.message, 120)}` : ""}`);
+      if ((d.skipped ?? []).some((s: { reason?: string }) => s.reason === "needs_individual")) line("  Flagged drafts: read each one, then `mindthread patrol approve <id>`");
+      if (d.remaining) line(`  ${d.remaining} more pending: run --all again`);
+    });
   }));
 
 patrol.command("reject").description("reject a drafted reply; the post is not proposed again").argument("<id>", "pending id").option("--reason <text>", "note")
