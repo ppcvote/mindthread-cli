@@ -1,6 +1,6 @@
 {
   "name": "mindthread-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Threads scheduler built for AI agents: write, schedule and publish Threads posts, review replies and read insights from the shell. JSON output for agents.",
   "type": "module",
   "bin": {
