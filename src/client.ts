@@ -56,6 +56,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Daily quota from the last response's X-RateLimit-* headers (null before the first call or when absent, e.g. a 401) */
+export interface RateInfo { limit: number | null; remaining: number | null; resetEpoch: number | null }
+export let lastRate: RateInfo | null = null;
+const num = (v: string | null) => (v !== null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
+
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type Query = Record<string, string | number | boolean | undefined | null>;
 export interface Envelope { ok?: boolean; data?: any; request_id?: string; [k: string]: any }
@@ -88,6 +93,8 @@ export async function request(method: Method, path: string, opts: { query?: Quer
     const reason = e instanceof Error ? (e.name === "TimeoutError" ? `no answer within ${Math.round(timeoutMs / 1000)} s` : (e as Error & { cause?: Error }).cause?.message || e.message) : String(e);
     throw new ApiError(`Cannot reach ${apiUrl()}: ${reason}`, 0, "network_error");
   }
+  const limit = num(res.headers.get("x-ratelimit-limit"));
+  if (limit !== null) lastRate = { limit, remaining: num(res.headers.get("x-ratelimit-remaining")), resetEpoch: num(res.headers.get("x-ratelimit-reset")) };
   const text = await res.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text.slice(0, 500) }; }

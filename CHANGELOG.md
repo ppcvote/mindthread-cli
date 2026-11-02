@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (2026-11-02)
+
+- Every call counts against the key's daily quota, including `events` polls that return nothing (free keys: 50 calls a day). `events --follow` used to poll every 60 s by default, which spends a free key's day in under an hour. The default interval now follows the key's daily quota from `X-RateLimit-Limit`: every 30 min up to 100/day, 15 min up to 200, 5 min up to 500, 2 min up to 1,000, 1 min above. It prints the interval once, and warns when an explicit `--interval` makes more calls a day than the quota.
+- A daily 429 during `--follow` pauses until `reset_at` (00:00 Asia/Taipei) with one clear line, instead of polling again; other rate limits wait `retry_after_seconds`.
+- A daily 429 on any other command says when the quota resets, to stop until then, and the suggested poll interval (API `suggested_poll_interval_seconds`).
+
 ## 0.4.0 (2026-10-27)
 
 - `patrol approve` takes several ids (up to 50) or `--all -a <account>` and calls the API 1.19.0 batch approve. A batch sends at most the account's replies left today; flagged drafts (`needs_individual`: political, self_harm, pii, promo, flagged) are never sent in a batch and are listed as left pending, to approve one id at a time. One id still uses the single route and accepts `--reply`. Batch approve needs `patrol:reply_send` set to allow.

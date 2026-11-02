@@ -61,7 +61,7 @@ Pass `--idempotency-key <unique-id>` on post and queue commands when you might r
 | 2 | usage error | fix the command; nothing was sent |
 | 3 | waiting for the owner (`approval_required`) | give the user the `human_url` from the error, **do not resend**; check later with `mindthread approval <id> --json` |
 | 4 | missing or rejected key | ask the user for a valid key |
-| 5 | rate limited | wait `retry_after_seconds`; do not loop |
+| 5 | rate limited | wait `retry_after_seconds`; a daily limit (`window: daily`) resets at 00:00 Asia/Taipei, so stop until `reset_at`; do not loop. Every call counts, polls included: on the free plan (50/day) poll `events` every 30 min or slower, or use `webhooks add` |
 | 1 | other error | read `error.code` and `error.message`; for `insufficient_scope` tell the user the `fix` text; for `content_rules_violated` rewrite the text to satisfy the listed rules |
 
 ## Replies (cloud patrol)

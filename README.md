@@ -46,7 +46,7 @@ With one connected account you can drop `--account`; with several, set `MINDTHRE
   | 2 | usage error, nothing was sent |
   | 3 | waiting for the account owner to confirm (`approval_required`): give the human the link, do not resend |
   | 4 | missing or rejected API key |
-  | 5 | rate limited (`retry_after_seconds` in the error) |
+  | 5 | rate limited (`retry_after_seconds` in the error; a daily limit resets at 00:00 Asia/Taipei, so stop until `reset_at`; every call counts, polls included) |
 
 - Retries: pass `--idempotency-key <id>` to `post`, `thread publish` and `queue add`; a retry with the same key returns the first result instead of posting twice.
 - The CLI never reads stdin unless you pass `-` (or `--file -`), so it cannot hang waiting for input.
@@ -67,7 +67,7 @@ With one connected account you can drop `--account`; with several, set `MINDTHRE
 | `queue list\|add\|approve\|archive\|rm\|edit` | The publishing queue: queued items publish at the account's own schedule times; drafts wait for approval |
 | `insights [-a @handle\|all] [-p 7d]` | Posts, engagement, followers |
 | `patrol status\|set\|pending\|approve\|reject\|log\|stats\|keywords` | Cloud patrol: keyword search on Threads with reply drafts you review; `keywords` asks AI for keyword ideas |
-| `events [--since] [--types] [--follow]` | Event feed for agents without a webhook endpoint |
+| `events [--since] [--types] [--follow]` | Event feed for agents without a webhook endpoint; `--follow` polls at an interval that fits your daily quota (every 30 min on the free plan) and pauses until midnight Asia/Taipei after a daily 429 |
 | `webhooks list\|add\|rm` | HTTPS webhooks (`post.published`, `post.failed`, `reply.sent`, …) |
 | `experiments list\|create\|get\|cancel` | A/B tests across content formulas |
 | `settings get\|set` | Persona, schedule times, review before publish, content rules (`--dry-run` previews) |

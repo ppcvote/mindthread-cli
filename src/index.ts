@@ -6,7 +6,8 @@
 import { Command, CommanderError, Option } from "commander";
 import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { ApiError, KEY_PAGE, VERSION, api, apiUrl, configFile, deleteConfig, mask, request, resolveKey, seg, writeConfig, type Method } from "./client.js";
+import { ApiError, KEY_PAGE, VERSION, api, apiUrl, configFile, deleteConfig, lastRate, mask, request, resolveKey, seg, writeConfig, type Method } from "./client.js";
+import { humanDuration, rateLimitPause, suggestedPollSeconds } from "./polling.js";
 import { EXIT, UsageError, block, clip, emit, kv, line, printJson, printWarnings, renderError, state, table } from "./output.js";
 
 // ── input helpers ────────────────────────────────────────────────────────────
@@ -564,9 +565,9 @@ program
   .option("--since <time>", "ISO 8601; only newer events")
   .option("--types <list>", "comma-separated event names")
   .option("--limit <n>", "1-200", int("--limit", 1, 200))
-  .option("--follow", "keep polling and print new events (Ctrl-C to stop; each poll is one API call)")
-  .option("--interval <seconds>", "poll interval with --follow (min 10)", int("--interval", 10, 3600), 60)
-  .action(run(async (o: { since?: string; types?: string; limit?: number; follow?: boolean; interval: number }) => {
+  .option("--follow", "keep polling and print new events (Ctrl-C to stop; each poll uses 1 call of your daily quota)")
+  .option("--interval <seconds>", "poll interval with --follow (min 10; default fits your daily quota: every 30 min on the free plan's 50 calls/day)", int("--interval", 10, 86400))
+  .action(run(async (o: { since?: string; types?: string; limit?: number; follow?: boolean; interval?: number }) => {
     const show = (evs: Array<Record<string, any>>) => {
       for (const ev of evs) {
         if (state.json) process.stdout.write(JSON.stringify(ev) + "\n");
@@ -579,19 +580,35 @@ program
       emit(res, () => { show(res.data?.events ?? []); if (!(res.data?.events ?? []).length) line("  No events."); });
       return;
     }
+    // Default interval follows the key's daily quota (X-RateLimit-Limit): every poll counts, even an empty one (2026-11-02)
+    let told = false;
     for (;;) {
-      let wait = o.interval;
+      let wait = o.interval ?? suggestedPollSeconds(lastRate?.limit);
       try {
         const res = await api.get("/events", { since, types: o.types, limit: o.limit });
         const evs = (res.data?.events ?? []) as Array<Record<string, any>>;
         show([...evs].reverse());
         if (res.data?.latest_at) since = res.data.latest_at;
+        wait = o.interval ?? suggestedPollSeconds(lastRate?.limit);
+        if (!told && lastRate?.limit) {
+          told = true;
+          const perDay = Math.ceil(86400 / wait);
+          process.stderr.write(`Polling every ${humanDuration(wait)} (${perDay} calls/day; this key's daily quota is ${lastRate.limit}).${perDay > lastRate.limit ? " That is more than the quota: you will hit 429 before midnight Asia/Taipei. Use a longer --interval or webhooks." : ""}
+`);
+        }
       } catch (e) {
         // keep following through rate limits and network blips; anything else (bad key, bad args) stops
         if (!(e instanceof ApiError) || !["rate_limit_exceeded", "timeout", "network_error"].includes(e.code)) throw e;
-        wait = Math.max(o.interval, Number(e.detail.retry_after_seconds) || 0);
-        process.stderr.write(`${e.code}: retrying in ${wait} s
+        if (e.code === "rate_limit_exceeded") {
+          // a daily 429 stops until reset_at: every call before then fails again
+          const p = rateLimitPause(e.detail);
+          wait = p.daily ? p.seconds : Math.max(wait, p.seconds);
+          process.stderr.write(`${p.message}
 `);
+        } else {
+          process.stderr.write(`${e.code}: retrying in ${humanDuration(wait)}
+`);
+        }
       }
       await new Promise((r) => setTimeout(r, wait * 1000));
     }

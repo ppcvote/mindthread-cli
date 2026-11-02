@@ -47,7 +47,7 @@ async function mock(override) {
       const call = { method: req.method, path, query: Object.fromEntries(u.searchParams), headers: req.headers, body: raw ? JSON.parse(raw) : undefined };
       calls.push(call);
       const out = (override && override(call)) || answer(call);
-      res.writeHead(out.status, { "Content-Type": "application/json" });
+      res.writeHead(out.status, { "Content-Type": "application/json", ...(out.headers || {}) });
       res.end(JSON.stringify(out.body));
     });
   });
@@ -329,4 +329,75 @@ test("help and version exit 0; unknown commands exit 2", async () => {
   const v = await cli(["--version"]);
   assert.match(v.stdout.trim(), /^\d+\.\d+\.\d+$/);
   assert.equal((await cli(["nope"])).code, 2);
+});
+
+// ── Polling that fits the daily quota (0.4.1, 2026-11-02): free keys have 50 calls a day and every poll counts ──
+import { suggestedPollSeconds, rateLimitPause, taipeiTime } from "../dist/polling.js";
+
+/** Run a never-ending command (events --follow) for `ms`, then stop it */
+async function followFor(args, override, ms) {
+  const m = await mock(override);
+  try {
+    const home = mkdtempSync(join(tmpdir(), "mt-cli-"));
+    const child = spawn(process.execPath, [BIN, ...args], {
+      env: { ...process.env, MINDTHREAD_CONFIG_DIR: join(home, ".mindthread"), MINDTHREAD_API_KEY: KEY, MINDTHREAD_ACCOUNT: "", MINDTHREAD_JSON: "", MINDTHREAD_API_URL: m.url },
+    });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
+    child.stdin.end();
+    await new Promise((r) => setTimeout(r, ms));
+    child.kill();
+    await new Promise((r) => child.on("close", r));
+    return { stdout, stderr, calls: m.calls };
+  } finally { await m.close(); }
+}
+
+test("suggested poll interval follows the daily quota (same tiers as the server)", () => {
+  assert.equal(suggestedPollSeconds(50), 1800);
+  assert.equal(suggestedPollSeconds(200), 900);
+  assert.equal(suggestedPollSeconds(500), 300);
+  assert.equal(suggestedPollSeconds(1000), 120);
+  assert.equal(suggestedPollSeconds(5000), 60);
+  assert.equal(suggestedPollSeconds(null), 1800, "unknown quota: assume the free plan");
+  for (const limit of [50, 100, 200, 500, 1000, 5000]) assert.ok(Math.ceil(86400 / suggestedPollSeconds(limit)) <= limit, `${limit}/day is enough for one polled endpoint`);
+});
+
+test("a daily 429 pauses until reset_at; other windows wait retry_after_seconds", () => {
+  const now = Date.parse("2026-11-02T03:00:00Z");
+  const reset = "2026-11-02T16:00:00Z"; // 00:00 Asia/Taipei
+  const p = rateLimitPause({ window: "daily", limit: 50, used: 50, reset_at: reset, retry_after_seconds: 46800, suggested_poll_interval_seconds: 1800 }, now);
+  assert.equal(p.daily, true);
+  assert.equal(p.seconds, 46805, "13 h until reset plus a few seconds");
+  assert.match(p.message, /Daily API limit reached \(50\/50 calls today\)\. Pausing until 2026-11-03 00:00 Asia\/Taipei \(in 13h 0m\)/);
+  assert.match(p.message, /poll every 30m or slower, or use webhooks/);
+  const stale = rateLimitPause({ window: "daily", limit: 50, reset_at: reset, retry_after_seconds: 50000 }, now);
+  assert.equal(stale.seconds, 50005, "never shorter than Retry-After");
+  const minute = rateLimitPause({ window: "minute", retry_after_seconds: 12 }, now);
+  assert.deepEqual([minute.daily, minute.seconds], [false, 12]);
+  assert.equal(taipeiTime(Date.parse(reset)), "2026-11-03 00:00 Asia/Taipei");
+});
+
+test("events --follow: default interval comes from X-RateLimit-Limit and says so; one call, not one a minute", async () => {
+  const { stderr, calls } = await followFor(["events", "--follow"], (c) => c.path === "/events" && ({ status: 200, headers: { "X-RateLimit-Limit": "50", "X-RateLimit-Remaining": "49" }, body: { ok: true, data: { events: [], latest_at: null } } }), 2500);
+  assert.equal(calls.filter((c) => c.path === "/events").length, 1);
+  assert.match(stderr, /Polling every 30m \(48 calls\/day; this key's daily quota is 50\)\./);
+});
+
+test("events --follow: --interval faster than the quota warns once", async () => {
+  const { stderr } = await followFor(["events", "--follow", "--interval", "60"], (c) => c.path === "/events" && ({ status: 200, headers: { "X-RateLimit-Limit": "50" }, body: { ok: true, data: { events: [] } } }), 2500);
+  assert.match(stderr, /Polling every 1m \(1440 calls\/day; this key's daily quota is 50\)\. That is more than the quota/);
+});
+
+test("events --follow: a daily 429 stops polling until reset_at instead of retrying", async () => {
+  const reset = new Date(Date.now() + 60_000).toISOString();
+  const { stderr, calls } = await followFor(["events", "--follow", "--interval", "10"], (c) => c.path === "/events" && fail(429, { code: "rate_limit_exceeded", message: "Daily API limit reached.", window: "daily", limit: 50, used: 50, reset_at: reset, retry_after_seconds: 60, suggested_poll_interval_seconds: 1800 }), 12_000);
+  assert.equal(calls.filter((c) => c.path === "/events").length, 1, "no second call before reset_at, even with --interval 10");
+  assert.match(stderr, /Daily API limit reached \(50\/50 calls today\)\. Pausing until .* Asia\/Taipei \(in 1m\)/);
+});
+
+test("a daily 429 outside --follow says when it resets and to stop until then (exit 5)", async () => {
+  const { r } = await withMock(["schedules"], { override: () => fail(429, { code: "rate_limit_exceeded", message: "Daily API limit reached.", window: "daily", limit: 50, used: 50, reset_at: "2026-11-02T16:00:00.000Z", retry_after_seconds: 3600, suggested_poll_interval_seconds: 1800 }) });
+  assert.equal(r.code, 5);
+  assert.match(r.stderr, /Daily API limit reached \(50\/50\)\. It resets at 00:00 Asia\/Taipei \(2026-11-02T16:00:00\.000Z\), in 3600 s; every call before then fails, so stop until then\. Each call counts, polls included: poll every 30 min or slower\./);
 });

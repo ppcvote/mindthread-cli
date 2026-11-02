@@ -136,7 +136,9 @@ export function renderError(e: unknown): number {
     }
     case "rate_limit_exceeded": {
       const used = d.limit !== undefined ? ` ${d.used ?? "?"}/${d.limit}` : "";
-      msg = `Rate limit reached (${d.window ?? "limit"}${used}). Retry after ${d.retry_after_seconds ?? "a few"} s${d.reset_at ? `; the daily pool resets at ${d.reset_at}` : ""}.`;
+      msg = d.window === "daily"
+        ? `Daily API limit reached${d.limit !== undefined ? ` (${d.used ?? "?"}/${d.limit})` : ""}. It resets at 00:00 Asia/Taipei${d.reset_at ? ` (${d.reset_at})` : ""}, in ${d.retry_after_seconds ?? "?"} s; every call before then fails, so stop until then. Each call counts, polls included${d.suggested_poll_interval_seconds ? `: poll every ${Math.round(Number(d.suggested_poll_interval_seconds) / 60)} min or slower` : ""}.`
+        : `Rate limit reached (${d.window ?? "limit"}${used}). Retry after ${d.retry_after_seconds ?? "a few"} s${d.reset_at ? `; the daily pool resets at ${d.reset_at}` : ""}.`;
       code = EXIT.rateLimit;
       break;
     }
