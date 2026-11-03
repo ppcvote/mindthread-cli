@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mindthread": {
+      "command": "npx",
+      "args": ["-y", "mindthread-mcp"],
+      "env": { "MINDTHREAD_API_KEY": "mt_test_your_key" }
+    }
+  }
+}

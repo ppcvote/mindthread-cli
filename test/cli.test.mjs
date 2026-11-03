@@ -401,3 +401,18 @@ test("a daily 429 outside --follow says when it resets and to stop until then (e
   assert.equal(r.code, 5);
   assert.match(r.stderr, /Daily API limit reached \(50\/50\)\. It resets at 00:00 Asia\/Taipei \(2026-11-02T16:00:00\.000Z\), in 3600 s; every call before then fails, so stop until then\. Each call counts, polls included: poll every 30 min or slower\./);
 });
+
+test("patrol pending reads the API shape: post is the text, author, permalink and posted_at beside it", async () => {
+  const item = { id: "p9", type: "discovered", keyword: "漲粉", post_author: "someone", post: "the original post text", permalink: "https://www.threads.com/@someone/post/ABC", posted_at: "2026-10-18T09:00:00.000Z", draft: null, reply: null };
+  const { r } = await withMock(["patrol", "pending", "-a", ACC1], { override: (c) => c.path === "/patrol/cloud/pending" && ok({ items: [item], has_more: false, next_cursor: null }) });
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /post: {2}the original post text/);
+  assert.match(r.stdout, /by: {4}@someone {2}2026-10-18T09:00:00\.000Z/);
+  assert.match(r.stdout, /link: {2}https:\/\/www\.threads\.com\/@someone\/post\/ABC/);
+});
+
+test("approval prints the Threads permalink of an executed publish", async () => {
+  const { r } = await withMock(["approval", "apr_9"], { override: (c) => c.path === "/approvals/apr_9" && ok({ approval: { id: "apr_9", status: "executed", decision: "once", result: { ok: true, permalink: "https://www.threads.com/@brand_one/post/DdvNFFzjhZt" } } }) });
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /link: {2}https:\/\/www\.threads\.com\/@brand_one\/post\/DdvNFFzjhZt/);
+});

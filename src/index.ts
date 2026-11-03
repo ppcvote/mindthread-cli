@@ -497,8 +497,13 @@ patrol
       const items = res.data?.items ?? [];
       if (!items.length) line(`  No ${o.status} items.`);
       for (const it of items) {
-        const post = it.post ?? it.target ?? {};
+        // The API sends `post` as the post text (a string) with post_author, permalink and posted_at beside it;
+        // older mocks and the webhook payload nest them in an object, so read both shapes.
+        const post = typeof it.post === "string" ? { text: it.post } : (it.post ?? it.target ?? {});
         line(`── ${it.id}  ${it.type ?? ""}${it.expires_at ? `  expires ${it.expires_at}` : ""}${it.needs_individual ? `  ⚠ needs individual approval (${(it.flags ?? []).join(", ")})` : ""}`);
+        const author = it.post_author ?? post.author;
+        const postedAt = it.posted_at ?? post.posted_at;
+        if (author || postedAt) line(`  by:    ${author ? `@${String(author).replace(/^@/, "")}` : "?"}${postedAt ? `  ${postedAt}` : ""}`);
         if (post.text || it.post_text) line(`  post:  ${clip(post.text ?? it.post_text, 140)}`);
         if (post.permalink || it.permalink) line(`  link:  ${post.permalink ?? it.permalink}`);
         if (it.draft ?? it.reply) line(`  reply: ${clip(it.draft ?? it.reply, 280)}`);
@@ -706,7 +711,13 @@ program
   .option("--remind", "ask MindThread to remind the owner again")
   .action(run(async (id: string, o: { remind?: boolean }) => {
     const res = o.remind ? await api.post(`/approvals/${seg(id)}/remind`) : await api.get(`/approvals/${seg(id)}`);
-    emit(res, () => { if (o.remind) line("✓ Reminder sent"); kv(res.data?.approval ?? res.data ?? {}, o.remind ? undefined : ["id", "status", "decision", "scope", "human_url", "expires_at", "decided_at", "result"]); });
+    emit(res, () => {
+      if (o.remind) line("✓ Reminder sent");
+      const a = res.data?.approval ?? res.data ?? {};
+      kv(a, o.remind ? undefined : ["id", "status", "decision", "scope", "human_url", "expires_at", "decided_at", "result"]);
+      // An executed publish carries the Threads URL the API read back from Threads (never computed from the media id)
+      if (!o.remind && a.result?.permalink) line(`  link:  ${a.result.permalink}`);
+    });
   }));
 
 program

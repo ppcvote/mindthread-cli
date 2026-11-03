@@ -52,6 +52,19 @@ With one connected account you can drop `--account`; with several, set `MINDTHRE
 - The CLI never reads stdin unless you pass `-` (or `--file -`), so it cannot hang waiting for input.
 - An [OpenClaw / ClawHub skill](skills/mindthread/SKILL.md) that teaches an agent this workflow ships with the package.
 - Prefer MCP? The same API is an MCP server: see [mindthread-mcp](https://github.com/ppcvote/mindthread-mcp), or run `claude mcp add --transport http mindthread https://mindthread.tw/api/mcp --header "Authorization: Bearer $MINDTHREAD_API_KEY"`.
+- Read `warnings[]` on writes and lists: `off_hours`, `stale_time_reference` and `changed_since_last_viewed` (the content changed since the owner or this key last saw it; the CLI prints the removed and added sentences). Show them to the human before releasing.
+- Links to posts come from Threads (`permalink` on patrol items and executed approvals); never build a post URL from a media id.
+
+## Connect it to your agent
+
+| Client | Setup |
+|--------|-------|
+| Claude Code | `claude mcp add --transport http mindthread https://mindthread.tw/api/mcp --header "Authorization: Bearer $MINDTHREAD_API_KEY"`, or the CLI plus the skill in `~/.claude/skills/mindthread/` |
+| Cursor | `~/.cursor/mcp.json`: [examples/cursor-mcp.json](examples/cursor-mcp.json) (hosted) or [examples/cursor-mcp-stdio.json](examples/cursor-mcp-stdio.json) |
+| OpenClaw | `npm install -g mindthread-cli`, then `npx clawhub@latest install mindthread --workdir ~/.openclaw/workspace`, and set `MINDTHREAD_API_KEY` |
+| Claude Desktop | [examples/claude-desktop-config.json](examples/claude-desktop-config.json) |
+
+Step-by-step setup, a first test, and a table of common errors with what the agent should do: **[docs/agent-setup.md](docs/agent-setup.md)**.
 
 ## Commands
 
@@ -100,6 +113,9 @@ mindthread patrol approve --all -a @yourbrand
 
 # Watch what happens
 mindthread events --follow --types post.published,post.failed --json
+
+# Endpoints without a dedicated command: random posting times that skip 17:00-18:00 (API 1.21.0)
+mindthread api PATCH /accounts/<account_id>/settings -d '{"random_schedule":true,"random_per_day":3,"random_window":"09:00-22:00","random_exclude":["17:00-18:00"]}'
 ```
 
 ## Safety
@@ -141,6 +157,8 @@ Requires Node.js 18.17 or newer.
    mindthread post "從終端機發的第一篇" --account @你的帳號 --at 2026-11-01T09:00:00+08:00
    mindthread schedules --account @你的帳號
    ```
+
+接到 agent：Claude Code 用 `claude mcp add --transport http mindthread https://mindthread.tw/api/mcp --header "Authorization: Bearer $MINDTHREAD_API_KEY"`；Cursor 用 [examples/cursor-mcp.json](examples/cursor-mcp.json)；OpenClaw 先 `npm install -g mindthread-cli`，再 `npx clawhub@latest install mindthread --workdir ~/.openclaw/workspace`。完整步驟與常見錯誤怎麼處理見 [docs/agent-setup.md](docs/agent-setup.md)。
 
 時間要帶時區（台灣是 `+08:00`），也可以寫 `+2h` 表示兩小時後。金鑰的每項權限可以設成「允許」「先問我」「拒絕」；設成「先問我」時，指令會以結束碼 3 結束並印出確認連結，帳號擁有者在 mindthread.tw 按下確認後才會執行。
 

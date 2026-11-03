@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mindthread": {
+      "url": "https://mindthread.tw/api/mcp",
+      "headers": { "Authorization": "Bearer mt_test_your_key" }
+    }
+  }
+}

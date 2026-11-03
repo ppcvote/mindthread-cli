@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 (unreleased, prepared 2026-11-04)
+
+- `patrol pending` reads the real API shape: `post` is the post text and `post_author`, `posted_at` and `permalink` sit beside it. Before, the post text was never printed. It now prints the author and time on a `by:` line and the Threads link; the older object shape still works.
+- `approval <id>` prints `link:` with `result.permalink` once an approved publish has run (the URL Threads returned).
+- New [docs/agent-setup.md](docs/agent-setup.md): Claude Code, Cursor and OpenClaw setup (hosted MCP, stdio bridge, CLI plus skill), a first test with a sandbox key, a table of common errors and what an agent should do, and the newer response fields (API 1.17.0 `warnings[]`, 1.18.0 `changed_since_last_viewed` and how views are recorded, the 2026-11-02 daily 429 body with `suggested_poll_interval_seconds`, `permalink`, 1.19.0 batch approve, 1.20.0 reply library, 1.21.0 random posting times).
+- New [examples/](examples/): Claude Code commands, Claude Desktop and Cursor MCP configs (hosted and stdio), an OpenClaw environment file.
+- README: "Connect it to your agent" table, warnings and permalink notes for agents, a `mindthread api` example for 1.21.0 random posting times. The skill tells agents to hand over `permalink`.
+
 ## 0.4.1 (2026-11-02)
 
 - Every call counts against the key's daily quota, including `events` polls that return nothing (free keys: 50 calls a day). `events --follow` used to poll every 60 s by default, which spends a free key's day in under an hour. The default interval now follows the key's daily quota from `X-RateLimit-Limit`: every 30 min up to 100/day, 15 min up to 200, 5 min up to 500, 2 min up to 1,000, 1 min above. It prints the interval once, and warns when an explicit `--interval` makes more calls a day than the quota.

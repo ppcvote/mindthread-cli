@@ -1,7 +1,7 @@
 ---
 name: mindthread
 description: Schedule, publish and manage Threads (threads.net) posts through MindThread. Draft posts in the account's voice, publish now or at a set time, queue posts, review cloud-patrol reply drafts, and read views and engagement. Use when the user asks to post, schedule, queue or analyze Threads content, or to review replies waiting for approval.
-version: 0.4.1
+version: 0.5.0
 metadata:
   openclaw:
     requires:
@@ -76,7 +76,7 @@ mindthread patrol reject <id> --json                 # never send
 mindthread patrol keywords -a @handle --json         # AI keyword suggestions (one AI call; once per 24 h)
 ```
 
-Show each draft to the user before approving unless they delegated the decision. A batch sends at most the account's `left_today` (daily cap minus replies already sent today); the rest stay pending with `daily_cap`. Drafts with `needs_individual` (political, self-harm, personal data, promotion, or flagged when drafted) are never batch-approved: show the user each one and approve it by its own id only if they say so. Batch approve needs `patrol:reply_send` set to allow; with ask it fails with `approval_not_supported`, so approve one id at a time. Turning patrol on can require the owner's confirmation; that is expected.
+Each item has the post text, `post_author`, `posted_at` and `permalink` (the post on Threads): give the user the link so they can read the thread before deciding. Show each draft to the user before approving unless they delegated the decision. A batch sends at most the account's `left_today` (daily cap minus replies already sent today); the rest stay pending with `daily_cap`. Drafts with `needs_individual` (political, self-harm, personal data, promotion, or flagged when drafted) are never batch-approved: show the user each one and approve it by its own id only if they say so. Batch approve needs `patrol:reply_send` set to allow; with ask it fails with `approval_not_supported`, so approve one id at a time. Turning patrol on can require the owner's confirmation; that is expected.
 
 ## Results
 
@@ -90,6 +90,6 @@ mindthread events --since <iso> --json        # post.published, post.failed, rep
 
 - Never publish with `--now` or approve a reply the user has not seen, unless the user explicitly asked you to act without review.
 - Never invent numbers or claims in posts; if the account has content rules with `facts`, only those numbers are allowed.
-- Do not retry a request that returned `approval_required`; the server runs it once the owner confirms.
+- Do not retry a request that returned `approval_required`; the server runs it once the owner confirms. When `mindthread approval <id> --json` shows `status: executed`, `result.permalink` is the published post on Threads; use that link as given, never build one from an id.
 - Read `warnings[]` in every response (they never block). `off_hours` and `stale_time_reference` question the time or a word like "yesterday"; `changed_since_last_viewed` means the text, media or time changed since the user last looked at it (or since you last read it): show the user the removed and added sentences before releasing it. Editing a draft is not the user seeing it.
 - Anything not covered here: `mindthread api GET /openapi.json` lists every endpoint; call one with `mindthread api <METHOD> <path> -d '<json>'`.
