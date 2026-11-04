@@ -10,7 +10,7 @@ Three ways in, all on the same API key and the same permission rules:
 
 The MCP tools are defined on the server, so a new API feature shows up without updating either npm package. The CLI wraps the REST API; anything it has no command for is one `mindthread api <METHOD> <path>` away.
 
-Start with a **test key** (`mt_test_…`): reads return your real data, writes are simulated and nothing reaches Threads. Create keys at mindthread.tw → Settings → API keys.
+Start with a **test key** (`mt_test_…`): reads return your real data, writes are simulated and nothing reaches Threads. Two reads are exceptions: `get_top_posts` (`GET /accounts/{id}/top-posts`) returns three sample posts marked `data_source: mock`, and brand documents (`get_brand_doc`, `save_brand_doc`) live in a sandbox copy that live keys never read, so a test key does not see documents saved with a live key. Create keys at mindthread.tw → Settings → API keys.
 
 ## Claude Code
 
@@ -74,6 +74,38 @@ The skill declares `MINDTHREAD_API_KEY` (required) and `MINDTHREAD_ACCOUNT` (opt
 ## Check that it works
 
 Ask the agent "list my MindThread accounts". Over MCP it calls `list_accounts`; with the CLI it runs `mindthread accounts --json`. Then try a safe write with a test key: "draft a post about our launch and schedule it for tomorrow 9am"; the response carries `test_mode: true` and nothing is posted.
+
+## Recipe D: pull your best posts first, then draft (read only)
+
+Needs the `read` permission only (MCP tools `list_accounts` and `get_top_posts`, API 1.22.0). Create a live key in Settings → API keys, click "Edit permissions and name", open "Advanced: set each permission", set "Read data" to Allow and the other nine permissions to "Don't allow". Do not use an `mt_test_` key here: `get_top_posts` then returns three sandbox demo posts (`data_source: mock`). Paste the two prompts below into the same conversation, one after the other. The Traditional Chinese original is 範本 D in the [README](../README.md#research-plan-and-schedule-in-claude).
+
+```text
+Use MindThread to make me a "content document":
+1. Use list_accounts to list my accounts. The one I want is @your_account.
+2. Use get_top_posts to fetch this account's 20 best posts by engagement (metric engagement, limit 20).
+3. Read all 20 and write a document with four sections:
+- Core ideas: 3 to 5 claims that keep coming back and get strong engagement, each with 1 original post as an example
+- Voice: sentence length, how posts open, common words, person, and which styles get especially good engagement
+- Worldview: why readers identify with this account and follow it
+- Data scope: how many posts, the posting period, and which day MindThread fetched the metrics
+4. Do not invent numbers or experiences that are not in the posts. Do not save anything yet; just show me.
+
+(after reading the document, in the same conversation)
+Based on the content document above, draft 3 new Threads posts:
+- Each one uses a different core idea and follows the voice in the document
+- Each under 500 characters, with a first line that makes people stop
+- Do not reuse sentences from old posts, and do not invent numbers or experiences; mark any place that needs a number with [TBD]
+- After each post, add one line saying which part of the document you used
+Just show me. Do not post, schedule or save.
+```
+
+Common mistakes:
+
+- **Zero posts back**: the same Threads account was connected twice, and `list_accounts` shows an older entry with no metrics yet. Pick the newer one by `connected_at`.
+- **Another member's account**: 404 `account_not_found` or 403 `forbidden`, because Threads only exposes your own metrics.
+- **Newest posts missing**: a background job reads each account in rotation every 30 minutes; posts it has not reached yet are left out. Check `metrics_fetched_at`.
+- **One viral off-topic post skews the document**: ask Claude to flag posts unrelated to the account's topics and not use them as core ideas.
+- **403 `insufficient_scope`**: "Read data" is not set to Allow on this key.
 
 ## Common errors
 

@@ -68,7 +68,7 @@ Step-by-step setup, a first test, and a table of common errors with what the age
 
 ## Research, plan and schedule in Claude
 
-With MindThread API 1.22.0 the MCP server (hosted, or this package's stdio bridge `mindthread-mcp`) adds three tools: `get_top_posts` ranks the best posts of an account you connected (the Threads API only returns insights for the authorized user's own posts, so other people's accounts cannot be read), and `save_brand_doc` / `get_brand_doc` keep brand, content and content-map documents on MindThread (up to 50,000 characters each, last 20 versions kept). Paste one of the prompts below into Claude or ChatGPT after connecting MindThread. The tools are defined on the server, so no package update is needed.
+With MindThread API 1.22.0 the MCP server (hosted, or this package's stdio bridge `mindthread-mcp`) adds three tools: `get_top_posts` ranks the best posts of an account you connected (the Threads API only returns insights for the authorized user's own posts, so other people's accounts cannot be read), and `save_brand_doc` / `get_brand_doc` keep brand, content and content-map documents on MindThread (up to 50,000 characters each, last 20 versions kept). Paste one of the prompts below into Claude or ChatGPT after connecting MindThread; recipe D needs only the read permission, so start there if you do not want to allow writes yet. The tools are defined on the server, so no package update is needed.
 
 在 Claude 裡直接研究、規劃、排程你的 Threads：把 MindThread MCP 接上 Claude 或 ChatGPT 之後，get_top_posts 會從你自己連結的帳號抓出互動最好的貼文（Threads 官方 API 只開放讀授權者本人的成效，讀不到別人的帳號），save_brand_doc 和 get_brand_doc 幫你把品牌文件、內容文件、內容地圖存在 MindThread（保留最近 20 版），generate_posts 照你的人設起草，schedule_text 或 add_library 排進發文時段。整理、規劃、起草、排程，都在同一段對話裡完成；每一步要不要存、要不要排，由你決定。
 
@@ -115,6 +115,35 @@ With MindThread API 1.22.0 the MCP server (hosted, or this package's stdio bridg
 4. 我挑出想先寫的創意後，用 list_accounts 確認帳號，用 generate_posts 起草（account_id 帶我的帳號，context 貼上相關的品牌文件段落）；給我看過以後，用 schedule_text 排程，或用 add_library 放進文案庫。
 沒有我同意，不要發文、不要排程。
 ```
+
+### 範本 D：先拉出最好的貼文，再起草（只需要讀取權限）
+
+```text
+用 MindThread 幫我做一份「內容文件」：
+1. 用 list_accounts 列出我的帳號，我要整理的是 @你的帳號。
+2. 用 get_top_posts 抓這個帳號互動最好的 20 則貼文（metric 用 engagement，limit 20）。
+3. 讀完這 20 則，整理成一份文件，分四節：
+・核心想法：反覆出現、互動又好的 3 到 5 個主張，每個附 1 則原文當例子
+・語氣特徵：句子長短、開頭方式、常用詞、人稱，哪些寫法互動特別好
+・世界觀：讀者會因為什麼認同這個帳號、願意追蹤
+・資料範圍：根據幾則貼文、發文期間、成效數字是 MindThread 抓到的哪一天的
+4. 不要編造貼文裡沒有的數字或經歷。這一步先不要存檔，直接給我看。
+
+（看完文件之後，同一段對話接著貼）
+根據上面這份內容文件，幫我起草 3 則新的 Threads 貼文：
+・每則用不同的核心想法，照文件裡的語氣特徵寫
+・每則 500 字以內，第一行就要讓人停下來
+・不要重複舊貼文的句子，不要編造數字或經歷；需要數字的地方用【待補】標出來
+・每則後面用一行說明你用了文件裡的哪一點
+只給我看，不要發文、不要排程、不要存檔。
+```
+
+範本 D 跟範本 A 的差別：範本 A 整理完會用 save_brand_doc 存檔，金鑰要開「產生與編輯內容」；範本 D 只讀不寫，第二段直接起草，不發文、不排程、不存檔。
+
+**金鑰怎麼設**：到「設定」的「API 金鑰」建立正式金鑰，按「修改權限與名稱」，打開「進階：逐項設定」，把「讀取資料」設成允許，其他九項設成不允許。不要用測試金鑰（mt_test_ 開頭）跑範本 D：測試金鑰呼叫 get_top_posts 會回三則沙盒示範貼文（data_source: mock）。
+
+Recipe D in English, with its common mistakes: [docs/agent-setup.md](docs/agent-setup.md#recipe-d-pull-your-best-posts-first-then-draft-read-only).
+
 ## Commands
 
 | Command | What it does |

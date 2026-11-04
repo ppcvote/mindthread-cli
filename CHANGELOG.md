@@ -3,6 +3,7 @@
 ## Unreleased
 
 - docs: README section "Research, plan and schedule in Claude" with the three Traditional Chinese prompt templates (best posts, brand interview, content map) for the MindThread API 1.22.0 tools get_top_posts, save_brand_doc and get_brand_doc. No CLI code change; npm not published.
+- docs: recipe D "pull your best posts first, then draft" (read permission only; tools list_accounts and get_top_posts), in Traditional Chinese in the README and in English with its common mistakes in [docs/agent-setup.md](docs/agent-setup.md). [docs/agent-setup.md](docs/agent-setup.md) now notes the two test-key reads that are not real data: `get_top_posts` returns three sample posts (`data_source: mock`) and brand documents live in a sandbox copy.
 
 ## 0.5.0 (unreleased, prepared 2026-11-04)
 
