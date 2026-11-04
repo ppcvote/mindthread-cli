@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- docs: README section "Research, plan and schedule in Claude" with the three Traditional Chinese prompt templates (best posts, brand interview, content map) for the MindThread API 1.22.0 tools get_top_posts, save_brand_doc and get_brand_doc. No CLI code change; npm not published.
+
 ## 0.5.0 (unreleased, prepared 2026-11-04)
 
 - `patrol pending` reads the real API shape: `post` is the post text and `post_author`, `posted_at` and `permalink` sit beside it. Before, the post text was never printed. It now prints the author and time on a `by:` line and the Threads link; the older object shape still works.

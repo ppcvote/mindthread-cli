@@ -66,6 +66,55 @@ With one connected account you can drop `--account`; with several, set `MINDTHRE
 
 Step-by-step setup, a first test, and a table of common errors with what the agent should do: **[docs/agent-setup.md](docs/agent-setup.md)**.
 
+## Research, plan and schedule in Claude
+
+With MindThread API 1.22.0 the MCP server (hosted, or this package's stdio bridge `mindthread-mcp`) adds three tools: `get_top_posts` ranks the best posts of an account you connected (the Threads API only returns insights for the authorized user's own posts, so other people's accounts cannot be read), and `save_brand_doc` / `get_brand_doc` keep brand, content and content-map documents on MindThread (up to 50,000 characters each, last 20 versions kept). Paste one of the prompts below into Claude or ChatGPT after connecting MindThread. The tools are defined on the server, so no package update is needed.
+
+在 Claude 裡直接研究、規劃、排程你的 Threads：把 MindThread MCP 接上 Claude 或 ChatGPT 之後，get_top_posts 會從你自己連結的帳號抓出互動最好的貼文（Threads 官方 API 只開放讀授權者本人的成效，讀不到別人的帳號），save_brand_doc 和 get_brand_doc 幫你把品牌文件、內容文件、內容地圖存在 MindThread（保留最近 20 版），generate_posts 照你的人設起草，schedule_text 或 add_library 排進發文時段。整理、規劃、起草、排程，都在同一段對話裡完成；每一步要不要存、要不要排，由你決定。
+
+### 範本 A：整理我的最佳貼文
+
+```text
+請用 MindThread 幫我整理最佳貼文：
+1. 先用 list_accounts 列出我的帳號，問我要整理哪一個。
+2. 用 get_top_posts 抓這個帳號表現最好的 20 則貼文（metric 用 engagement；我說只看最近，就加 days: 90）。
+3. 讀完這些貼文，整理成「內容文件」：
+・核心觀點：反覆出現、互動又最好的 3 到 5 個主張，每個附 1 則原文當例子
+・表達風格：句子長短、開頭方式、常用詞、語氣，哪些寫法互動特別好
+・價值觀：讀者會因為什麼認同我、留下來
+・資料範圍：寫明這份整理根據幾則貼文、成效是 MindThread 抓到的數字
+4. 先給我看草稿，我說可以之後，用 save_brand_doc 存成 doc_id「content」，language 用 zh-TW。
+不要編造貼文裡沒有的數字或經歷。
+```
+
+### 範本 B：品牌訪談
+
+```text
+請當我的品牌策略夥伴，用訪談的方式幫我寫品牌文件。一次只問一題，等我回答再問下一題；我答得太短，就追問一次。
+1. 你幫助的是誰？他們現在卡在哪裡？
+2. 你的故事：你是怎麼走到今天的？
+3. 影響你最深的人或作品是什麼？
+4. 你的內容支柱有哪些？你的獨特視角是什麼？
+5. 你相信什麼？
+6. 你反對什麼？
+7. 為什麼是現在？
+8. 你想帶受眾去哪裡？
+9. 你寫作的規則與用語：哪些詞一定用、哪些絕對不用？
+問完之後整理成品牌文件（Markdown，每題一節，盡量用我的原話，不要加我沒說過的事），先給我確認。
+開始前先用 get_brand_doc 看 doc_id「brand」有沒有舊版；有的話存檔時帶上它的 version 當 base_version，沒有就帶 0。
+確認後用 save_brand_doc 存成 doc_id「brand」。
+```
+
+### 範本 C：內容地圖
+
+```text
+請幫我做 Threads 內容地圖：
+1. 用 get_brand_doc 讀 doc_id「brand」和「content」。缺哪一份就先告訴我，建議我先跑範本 A 或範本 B。
+2. 依這兩份文件規劃：3 到 4 個內容支柱，每個支柱 5 到 7 個主題，每個主題 5 到 10 個創意，每個創意 4 到 5 個切角（例如故事、反直覺觀點、步驟、清單、常見錯誤），每個切角寫成一句話。
+3. 用巢狀清單呈現，先給我確認，再用 save_brand_doc 存成 doc_id「content_map」。
+4. 我挑出想先寫的創意後，用 list_accounts 確認帳號，用 generate_posts 起草（account_id 帶我的帳號，context 貼上相關的品牌文件段落）；給我看過以後，用 schedule_text 排程，或用 add_library 放進文案庫。
+沒有我同意，不要發文、不要排程。
+```
 ## Commands
 
 | Command | What it does |
